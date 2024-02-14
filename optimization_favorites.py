@@ -1,8 +1,8 @@
-from utility import pd, datetime, timedelta, get_historical_data_sync, implement_strategy, BayesianOptimization, extract_ids_and_update_csv, load_dotenv, Avanza, getenv
+from utility import read_csv, DataFrame, to_datetime, datetime, timedelta, get_data, implement_strategy, BayesianOptimization, extract_ids_and_update_csv, load_dotenv, Avanza, getenv, ta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Load ticker data from a CSV file
-ticker_df = pd.read_csv('./input/best_tickers.csv')
+ticker_df = read_csv('./input/best_tickers.csv')
 ticker_list = ticker_df[['id', 'ticker']].to_dict('records')
 
 
@@ -21,11 +21,11 @@ def objective_for_ticker(ticker, lower_length, upper_length):
         end_date = current_date - timedelta(days=0)
         end_date_str = end_date.strftime('%Y-%m-%d')
         
-        stock = get_historical_data_sync(ticker, start_date_str, end_date_str, "1d")
+        stock = get_data(ticker, start_date_str, end_date_str, "1d")
         stock.index.name = 'date'
         stock[['dcl', 'dcm', 'dcu']] = stock.ta.donchian(lower_length=lower_length, upper_length=upper_length)
         stock = stock.dropna()
-        stock.index = pd.to_datetime(stock.index)
+        stock.index = to_datetime(stock.index)
         
         _, _, earning = implement_strategy(stock, 1000, lower_length, upper_length)
         return earning
@@ -66,5 +66,5 @@ with ThreadPoolExecutor(max_workers=5) as executor:
             results.append([ticker_record['id'], ticker_record['ticker'], params['target'], params['params']['lower_length'], params['params']['upper_length']])
 
 # Save results to a CSV file
-result_df = pd.DataFrame(results, columns=['id', 'ticker', 'target', 'lower_length', 'upper_length'])
+result_df = DataFrame(results, columns=['id', 'ticker', 'target', 'lower_length', 'upper_length'])
 result_df.to_csv('./output/optimized_tickers_with_id.csv', index=False)
